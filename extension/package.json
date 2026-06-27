@@ -1,0 +1,95 @@
+{
+  "name": "standup",
+  "displayName": "Standup",
+  "description": "Local-first daily stand-up generator. Watches your git, IDE activity & GitHub, drafts your stand-up with a local LLM, posts to Discord/Slack.",
+  "version": "0.0.1",
+  "publisher": "standup-dev",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "standup.generate",
+        "title": "Standup: Generate Today's Update"
+      },
+      {
+        "command": "standup.showActivity",
+        "title": "Standup: Show Tracked Activity (debug)"
+      }
+    ],
+    "configuration": {
+      "title": "Standup",
+      "properties": {
+        "standup.lookbackHours": {
+          "type": "number",
+          "default": 24,
+          "description": "How many hours back to gather activity when generating a stand-up."
+        },
+        "standup.ollama.url": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Base URL of your local Ollama server."
+        },
+        "standup.ollama.model": {
+          "type": "string",
+          "default": "llama3.2",
+          "description": "Ollama model to use for summarizing your activity."
+        },
+        "standup.github.token": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional GitHub personal access token (fine-grained or classic with `repo` read). Used to fetch closed issues and merged PRs. Leave empty to skip GitHub.",
+          "scope": "machine"
+        },
+        "standup.github.repos": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "markdownDescription": "Repos to check, as `owner/name`. If empty, Standup auto-detects from the current workspace's git `origin` remote."
+        },
+        "standup.format": {
+          "type": "string",
+          "enum": ["done-next-blockers", "yesterday-today-blockers"],
+          "default": "done-next-blockers",
+          "description": "Stand-up format to generate."
+        },
+        "standup.webhook.type": {
+          "type": "string",
+          "enum": ["none", "discord", "slack"],
+          "default": "none",
+          "description": "Where the Send button posts your stand-up."
+        },
+        "standup.webhook.url": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Incoming webhook URL for Discord or Slack. No bot or OAuth needed — create an incoming webhook in your channel settings.",
+          "scope": "machine"
+        },
+        "standup.track.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Track IDE activity (which files you edit and save). Stored locally only."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -30,12 +30,29 @@ Then press **F5** in VS Code (or Cursor) to launch the Extension Development Hos
 | `standup.lookbackHours` | `24` | How far back to gather activity |
 | `standup.ollama.url` | `http://localhost:11434` | Local Ollama server |
 | `standup.ollama.model` | `llama3.2` | Model used to summarize |
-| `standup.github.token` | `""` | Optional GitHub PAT (issues/PRs) |
+| `standup.github.useBuiltInAuth` | `true` | Use the editor's GitHub sign-in — no PAT. Run "Standup: Connect GitHub" once |
+| `standup.github.token` | `""` | Optional PAT, only if you'd rather not use built-in sign-in |
 | `standup.github.repos` | `[]` | `owner/name` list; auto-detected from git `origin` if empty |
+| `standup.cursor.enabled` | `true` | Include today's Cursor AI prompts as context (read locally, read-only) |
 | `standup.format` | `done-next-blockers` | Stand-up shape |
 | `standup.webhook.type` | `none` | `discord` \| `slack` \| `none` |
 | `standup.webhook.url` | `""` | Incoming webhook URL (no bot/OAuth needed) |
 | `standup.track.enabled` | `true` | Track which files you edit/save (local only) |
+| `standup.reminder.enabled` | `true` | Daily local-time nudge to send your stand-up |
+| `standup.reminder.time` | `16:00` | Reminder time (24h `HH:MM`, local). Set on first run. |
+
+## Draft style
+
+The draft is shaped by a **style example** — an example stand-up the local model
+imitates for voice and structure. It ships with a sensible prose default (no
+`feat()`/`fix()` prefixes, grouped by theme). Edit it in the **"✎ Customize draft
+style"** section of the panel, Save, then Regenerate. Reset any time with
+**"Standup: Reset Draft Style to Default"**.
+
+The panel shows the draft in **Markdown** and **Plain text** tabs; each is
+independently editable and copyable. GitHub issues/PRs are appended as a
+**References** block with real links (built in code, so links are never
+hallucinated).
 
 ## How it works
 

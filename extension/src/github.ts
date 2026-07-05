@@ -1,8 +1,31 @@
 import * as vscode from "vscode";
 import { GitHubItem } from "./types";
 import { repoSlug } from "./git";
+import { cfg } from "./config";
 
 const API = "https://api.github.com";
+
+// Resolves a GitHub token WITHOUT requiring a manual PAT: prefers an explicit
+// token if the user set one, otherwise uses the editor's built-in GitHub
+// sign-in (VS Code / Cursor). Pass interactive=true to trigger the login UI.
+export async function githubToken(interactive = false): Promise<string> {
+  const c = cfg();
+  if (c.githubToken) {
+    return c.githubToken;
+  }
+  if (!c.githubUseBuiltInAuth) {
+    return "";
+  }
+  try {
+    const session = await vscode.authentication.getSession("github", ["repo"], {
+      createIfNone: interactive,
+      silent: !interactive,
+    });
+    return session?.accessToken ?? "";
+  } catch {
+    return "";
+  }
+}
 
 interface SearchItem {
   number: number;

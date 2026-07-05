@@ -34,6 +34,11 @@ export interface FileTouch {
   lastTs: string;
 }
 
+export interface CursorPrompt {
+  ts: string; // ISO
+  text: string;
+}
+
 // Everything gathered for one stand-up generation.
 export interface StandupContext {
   since: Date;
@@ -41,4 +46,5 @@ export interface StandupContext {
   commits: Commit[];
   touches: FileTouch[];
   github: GitHubItem[];
+  cursorPrompts: CursorPrompt[];
 }

@@ -1,7 +1,8 @@
 import { Store } from "./store";
 import { cfg } from "./config";
 import { collectCommits } from "./git";
-import { collectGitHub } from "./github";
+import { collectGitHub, githubToken } from "./github";
+import { collectCursorPrompts } from "./cursor";
 import { ActivityEvent, FileTouch, StandupContext } from "./types";
 
 function aggregateTouches(events: ActivityEvent[]): FileTouch[] {
@@ -38,14 +39,16 @@ export async function gatherContext(store: Store): Promise<StandupContext> {
   const until = new Date();
   const since = new Date(until.getTime() - c.lookbackHours * 3600_000);
 
-  const [commits, github] = await Promise.all([
+  const token = await githubToken(false);
+  const [commits, github, cursorPrompts] = await Promise.all([
     collectCommits(since, until),
-    collectGitHub(c.githubToken, c.githubRepos, since),
+    collectGitHub(token, c.githubRepos, since),
+    c.cursorEnabled ? collectCursorPrompts(since, until) : Promise.resolve([]),
   ]);
 
   const touches = aggregateTouches(store.readRange(since, until));
 
-  return { since, until, commits, touches, github };
+  return { since, until, commits, touches, github, cursorPrompts };
 }
 
 // Render the gathered context as a compact text block for the model / debug view.
@@ -65,6 +68,14 @@ export function contextToText(ctx: StandupContext): string {
     for (const g of ctx.github) {
       const tag = g.kind === "pr" ? "merged PR" : "closed issue";
       lines.push(`- [${g.repo}] ${tag} #${g.number}: ${g.title}`);
+    }
+    lines.push("");
+  }
+
+  if (ctx.cursorPrompts.length) {
+    lines.push("## AI prompts I gave my assistant today (shows intent / in-progress work)");
+    for (const p of ctx.cursorPrompts) {
+      lines.push(`- ${p.text}`);
     }
     lines.push("");
   }

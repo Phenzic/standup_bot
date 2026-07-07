@@ -2,7 +2,7 @@
   "name": "standup",
   "displayName": "Standup",
   "description": "Local-first daily stand-up generator. Watches your git, IDE activity & GitHub, drafts your stand-up with a local LLM, posts to Discord/Slack.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "standup-dev",
   "license": "MIT",
   "engines": {
@@ -78,6 +78,17 @@
           "enum": ["done-next-blockers", "yesterday-today-blockers"],
           "default": "done-next-blockers",
           "description": "Stand-up format to generate."
+        },
+        "standup.detail": {
+          "type": "string",
+          "enum": ["concise", "standard", "elaborate"],
+          "enumDescriptions": [
+            "3-4 short points, outcomes only",
+            "5-7 points with the key specifics (files, endpoints, issue numbers)",
+            "5-8 thorough points enumerating files, assets, fields and URLs — a full work log"
+          ],
+          "default": "standard",
+          "description": "How detailed the generated stand-up should be. Also switchable from the stand-up panel."
         },
         "standup.webhook.type": {
           "type": "string",

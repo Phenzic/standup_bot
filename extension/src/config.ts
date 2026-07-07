@@ -17,5 +17,6 @@ export function cfg() {
     reminderEnabled: c.get<boolean>("reminder.enabled", true),
     reminderTime: c.get<string>("reminder.time", "16:00"),
     cursorEnabled: c.get<boolean>("cursor.enabled", true),
+    detail: c.get<"concise" | "standard" | "elaborate">("detail", "standard"),
   };
 }

@@ -54,6 +54,7 @@ export class StandupPanel {
       markdown: p.markdown,
       style: p.style,
       summary: p.summary,
+      detail: c.detail,
       target: c.webhookType === "none" ? "" : c.webhookType,
     });
   }
@@ -69,6 +70,12 @@ export class StandupPanel {
         vscode.window.showInformationMessage(`Copied ${msg.label ?? "text"} to clipboard.`);
         break;
       case "regenerate":
+        this.onRegenerate();
+        break;
+      case "setDetail":
+        await vscode.workspace
+          .getConfiguration("standup")
+          .update("detail", msg.detail, vscode.ConfigurationTarget.Global);
         this.onRegenerate();
         break;
       case "saveStyle":
@@ -156,6 +163,13 @@ export class StandupPanel {
     <button class="action" id="copy">Copy</button>
     <button class="action secondary" id="send" style="display:none">Send</button>
     <button class="action secondary" id="regen">Regenerate</button>
+    <label style="font-size:12px;opacity:.8;margin-left:auto">Detail
+      <select id="detail" style="margin-left:4px;color:var(--vscode-input-foreground);background:var(--vscode-input-background);border:1px solid var(--vscode-input-border,transparent);border-radius:4px;padding:4px 6px">
+        <option value="concise">Concise · 3–4 points</option>
+        <option value="standard">Standard · 5–7 points</option>
+        <option value="elaborate">Elaborate · full work log</option>
+      </select>
+    </label>
   </div>
   <div id="status"></div>
 
@@ -205,6 +219,8 @@ export class StandupPanel {
   document.getElementById('copy').onclick = () =>
     vscode.postMessage({ kind: 'copy', text: activeText(), label: activePane === 'txt' ? 'plain text' : 'markdown' });
   document.getElementById('regen').onclick = () => vscode.postMessage({ kind: 'regenerate' });
+  document.getElementById('detail').onchange = (e) =>
+    vscode.postMessage({ kind: 'setDetail', detail: e.target.value });
   sendBtn.onclick = () => vscode.postMessage({ kind: 'send', text: activeText() });
   document.getElementById('saveStyle').onclick = () =>
     vscode.postMessage({ kind: 'saveStyle', style: document.getElementById('style').value });
@@ -218,6 +234,7 @@ export class StandupPanel {
       txtEdited = false;
       md.value = m.markdown; syncPlain();
       document.getElementById('style').value = m.style || '';
+      if (m.detail) document.getElementById('detail').value = m.detail;
       const s = m.summary || {};
       meta.textContent = [
         s.commits ? s.commits + ' commits' : '',

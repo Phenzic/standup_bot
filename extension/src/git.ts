@@ -34,8 +34,9 @@ export async function repoSlug(cwd: string): Promise<string | null> {
 // within [since, until].
 export async function collectCommits(since: Date, until: Date): Promise<Commit[]> {
   const folders = vscode.workspace.workspaceFolders ?? [];
+  const RS = "\x1e"; // record start
   const US = "\x1f"; // field sep
-  const RS = "\x1e"; // record sep
+  const GS = "\x1d"; // header/files sep
   const out: Commit[] = [];
 
   for (const folder of folders) {
@@ -52,11 +53,14 @@ export async function collectCommits(since: Date, until: Date): Promise<Commit[]
     }
 
     const slug = (await repoSlug(cwd)) ?? folder.name;
+    // RS opens each record and GS closes the header, so the --name-only file
+    // list that git prints after the header can be split off unambiguously.
     const args = [
       "log",
+      "--name-only",
       `--since=${since.toISOString()}`,
       `--until=${until.toISOString()}`,
-      `--pretty=format:%H${US}%aI${US}%s${US}%b${RS}`,
+      `--pretty=format:${RS}%H${US}%aI${US}%s${US}%b${GS}`,
     ];
     if (author) {
       args.push(`--author=${author}`);
@@ -65,17 +69,25 @@ export async function collectCommits(since: Date, until: Date): Promise<Commit[]
     try {
       const stdout = await git(cwd, args);
       for (const rec of stdout.split(RS)) {
-        const line = rec.trim();
-        if (!line) {
+        if (!rec.trim()) {
           continue;
         }
-        const [hash, date, subject, body = ""] = line.split(US);
+        const [header, filesBlob = ""] = rec.split(GS);
+        const [hash, date, subject, body = ""] = header.split(US);
+        if (!hash?.trim()) {
+          continue;
+        }
+        const files = filesBlob
+          .split("\n")
+          .map((f) => f.trim())
+          .filter(Boolean);
         out.push({
-          hash: (hash ?? "").slice(0, 8),
+          hash: hash.trim().slice(0, 8),
           date: date ?? "",
           subject: subject ?? "",
           body: body.trim(),
           repo: slug,
+          files,
         });
       }
     } catch (e) {

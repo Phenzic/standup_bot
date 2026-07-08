@@ -1,4 +1,12 @@
 import * as vscode from "vscode";
+import { DetailLevel } from "./state";
+
+let detailGetter: () => DetailLevel = () => "concise";
+
+// Wired in activate() so the panel's last-used detail level is the source of truth.
+export function setDetailGetter(fn: () => DetailLevel): void {
+  detailGetter = fn;
+}
 
 // Thin typed wrapper over the extension's settings.
 export function cfg() {
@@ -17,6 +25,6 @@ export function cfg() {
     reminderEnabled: c.get<boolean>("reminder.enabled", true),
     reminderTime: c.get<string>("reminder.time", "16:00"),
     cursorEnabled: c.get<boolean>("cursor.enabled", true),
-    detail: c.get<"concise" | "standard" | "elaborate">("detail", "standard"),
+    detail: detailGetter(),
   };
 }

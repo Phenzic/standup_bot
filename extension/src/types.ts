@@ -14,6 +14,7 @@ export interface Commit {
   subject: string;
   body: string;
   repo: string;
+  files: string[]; // paths changed in this commit
 }
 
 export interface GitHubItem {

@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
 import { cfg } from "./config";
 import { postToWebhook } from "./post";
+import { DetailLevel, State } from "./state";
 
 export interface DraftPayload {
   markdown: string;
-  style: string;
   summary: { commits: number; files: number; github: number };
 }
 
@@ -15,10 +15,11 @@ export class StandupPanel {
   private panel: vscode.WebviewPanel;
   private disposables: vscode.Disposable[] = [];
 
-  static show(onRegenerate: () => void, onSaveStyle: (s: string) => void): StandupPanel {
+  static show(onRegenerate: () => void, state: State): StandupPanel {
     if (StandupPanel.current) {
       StandupPanel.current.onRegenerate = onRegenerate;
-      StandupPanel.current.onSaveStyle = onSaveStyle;
+      StandupPanel.current.state = state;
+      StandupPanel.current.syncDetail();
       StandupPanel.current.panel.reveal();
       return StandupPanel.current;
     }
@@ -28,17 +29,18 @@ export class StandupPanel {
       vscode.ViewColumn.Active,
       { enableScripts: true, retainContextWhenHidden: true },
     );
-    StandupPanel.current = new StandupPanel(panel, onRegenerate, onSaveStyle);
+    StandupPanel.current = new StandupPanel(panel, onRegenerate, state);
     return StandupPanel.current;
   }
 
   private constructor(
     panel: vscode.WebviewPanel,
     private onRegenerate: () => void,
-    private onSaveStyle: (s: string) => void,
+    private state: State,
   ) {
     this.panel = panel;
     this.panel.webview.html = this.html();
+    this.syncDetail();
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     this.panel.webview.onDidReceiveMessage((msg) => this.handle(msg), null, this.disposables);
   }
@@ -52,7 +54,6 @@ export class StandupPanel {
     this.panel.webview.postMessage({
       kind: "draft",
       markdown: p.markdown,
-      style: p.style,
       summary: p.summary,
       detail: c.detail,
       target: c.webhookType === "none" ? "" : c.webhookType,
@@ -61,6 +62,10 @@ export class StandupPanel {
 
   setError(message: string): void {
     this.panel.webview.postMessage({ kind: "error", message });
+  }
+
+  private syncDetail(): void {
+    this.panel.webview.postMessage({ kind: "init", detail: cfg().detail });
   }
 
   private async handle(msg: any): Promise<void> {
@@ -72,16 +77,15 @@ export class StandupPanel {
       case "regenerate":
         this.onRegenerate();
         break;
-      case "setDetail":
+      case "setDetail": {
+        const detail = msg.detail as DetailLevel;
+        await this.state.setDetail(detail);
         await vscode.workspace
           .getConfiguration("standup")
-          .update("detail", msg.detail, vscode.ConfigurationTarget.Global);
+          .update("detail", detail, vscode.ConfigurationTarget.Global);
         this.onRegenerate();
         break;
-      case "saveStyle":
-        this.onSaveStyle(msg.style ?? "");
-        vscode.window.showInformationMessage("Style saved. Regenerate to apply it.");
-        break;
+      }
       case "send":
         try {
           await postToWebhook(msg.text ?? "");
@@ -100,6 +104,8 @@ export class StandupPanel {
   }
 
   private html(): string {
+    const detail = cfg().detail;
+    const sel = (v: string) => (detail === v ? " selected" : "");
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -132,9 +138,6 @@ export class StandupPanel {
   }
   button.secondary { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
   button.action:hover { opacity: 0.9; }
-  details { margin-top: 18px; border-top: 1px solid var(--vscode-panel-border, rgba(128,128,128,.3)); padding-top: 10px; }
-  summary { cursor: pointer; font-size: 13px; opacity: 0.85; }
-  details textarea { min-height: 160px; margin-top: 8px; }
   #status { margin-top: 10px; min-height: 16px; font-size: 12px; opacity: 0.85; }
   .err { color: var(--vscode-errorForeground); white-space: pre-wrap; }
   .hint { font-size: 12px; opacity: 0.65; margin: 6px 0 0; }
@@ -165,22 +168,13 @@ export class StandupPanel {
     <button class="action secondary" id="regen">Regenerate</button>
     <label style="font-size:12px;opacity:.8;margin-left:auto">Detail
       <select id="detail" style="margin-left:4px;color:var(--vscode-input-foreground);background:var(--vscode-input-background);border:1px solid var(--vscode-input-border,transparent);border-radius:4px;padding:4px 6px">
-        <option value="concise">Concise · 3–4 points</option>
-        <option value="standard">Standard · 5–7 points</option>
-        <option value="elaborate">Elaborate · full work log</option>
+        <option value="concise"${sel("concise")}>Concise · 3–4 points</option>
+        <option value="standard"${sel("standard")}>Standard · 5–7 points</option>
+        <option value="elaborate"${sel("elaborate")}>Elaborate · full work log</option>
       </select>
     </label>
   </div>
   <div id="status"></div>
-
-  <details id="styleBox">
-    <summary>✎ Customize draft style</summary>
-    <p class="hint">Paste an example of how you want your stand-up to read. The local model imitates its voice and structure. Save, then Regenerate.</p>
-    <textarea id="style" placeholder="Your ideal stand-up example…"></textarea>
-    <div class="row">
-      <button class="action secondary" id="saveStyle">Save style</button>
-    </div>
-  </details>
 
 <script>
   const vscode = acquireVsCodeApi();
@@ -222,28 +216,27 @@ export class StandupPanel {
   document.getElementById('detail').onchange = (e) =>
     vscode.postMessage({ kind: 'setDetail', detail: e.target.value });
   sendBtn.onclick = () => vscode.postMessage({ kind: 'send', text: activeText() });
-  document.getElementById('saveStyle').onclick = () =>
-    vscode.postMessage({ kind: 'saveStyle', style: document.getElementById('style').value });
 
   window.addEventListener('message', (e) => {
     const m = e.data;
     if (m.kind === 'loading') {
       md.value = ''; txt.value = ''; txtEdited = false;
       md.placeholder = m.label; status.textContent = m.label; status.className = '';
-    } else if (m.kind === 'draft') {
-      txtEdited = false;
-      md.value = m.markdown; syncPlain();
-      document.getElementById('style').value = m.style || '';
+    } else if (m.kind === 'init' || m.kind === 'draft') {
+      if (m.kind === 'draft') {
+        txtEdited = false;
+        md.value = m.markdown; syncPlain();
+        const s = m.summary || {};
+        meta.textContent = [
+          s.commits ? s.commits + ' commits' : '',
+          s.files ? s.files + ' files' : '',
+          s.github ? s.github + ' GitHub items' : ''
+        ].filter(Boolean).join(' · ');
+        status.textContent = 'Review and edit, then copy or send.'; status.className = '';
+        if (m.target) { sendBtn.style.display = 'inline-block'; sendBtn.textContent = 'Send to ' + m.target; }
+        else { sendBtn.style.display = 'none'; }
+      }
       if (m.detail) document.getElementById('detail').value = m.detail;
-      const s = m.summary || {};
-      meta.textContent = [
-        s.commits ? s.commits + ' commits' : '',
-        s.files ? s.files + ' files' : '',
-        s.github ? s.github + ' GitHub items' : ''
-      ].filter(Boolean).join(' · ');
-      status.textContent = 'Review and edit, then copy or send.'; status.className = '';
-      if (m.target) { sendBtn.style.display = 'inline-block'; sendBtn.textContent = 'Send to ' + m.target; }
-      else { sendBtn.style.display = 'none'; }
     } else if (m.kind === 'error') {
       status.textContent = m.message; status.className = 'err';
     }

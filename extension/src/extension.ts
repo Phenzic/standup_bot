@@ -3,7 +3,7 @@ import { Store } from "./store";
 import { Tracker } from "./tracker";
 import { State } from "./state";
 import { Reminder } from "./reminder";
-import { cfg } from "./config";
+import { cfg, setDetailGetter } from "./config";
 import { gatherContext, contextToText } from "./gather";
 import { generateStandup, OllamaError } from "./summarize";
 import { githubToken } from "./github";
@@ -19,6 +19,18 @@ export function activate(context: vscode.ExtensionContext) {
   store = new Store(context);
   state = new State(context);
 
+  // Migrate a previously saved workspace setting into globalState once.
+  if (!state.hasDetail()) {
+    const insp = vscode.workspace
+      .getConfiguration("standup")
+      .inspect<"concise" | "standard" | "elaborate">("detail");
+    const saved = insp?.globalValue ?? insp?.workspaceValue;
+    if (saved) {
+      void state.setDetail(saved);
+    }
+  }
+  setDetailGetter(() => state.getDetail());
+
   if (cfg().trackEnabled) {
     tracker = new Tracker(store);
     tracker.start();
@@ -33,10 +45,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("standup.setReminderTime", () =>
       reminder?.pickTime("What time should Standup remind you daily? (24h, local)"),
     ),
-    vscode.commands.registerCommand("standup.resetStyle", async () => {
-      await state.resetStyle();
-      vscode.window.showInformationMessage("Draft style reset to the default.");
-    }),
     vscode.commands.registerCommand("standup.connectGitHub", async () => {
       const token = await githubToken(true);
       vscode.window.showInformationMessage(
@@ -47,10 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 async function runGenerate(): Promise<void> {
-  const panel = StandupPanel.show(
-    () => void runGenerate(),
-    (s) => void state.setStyle(s),
-  );
+  const panel = StandupPanel.show(() => void runGenerate(), state);
   panel.setLoading("Gathering your activity…");
   try {
     const ctx = await gatherContext(store);
@@ -61,11 +66,10 @@ async function runGenerate(): Promise<void> {
       return;
     }
     panel.setLoading("Writing your stand-up with the local model…");
-    const draft = await generateStandup(ctx, state.getStyle());
+    const draft = await generateStandup(ctx);
     const markdown = draft + buildReferences(ctx);
     panel.setDraft({
       markdown,
-      style: state.getStyle(),
       summary: {
         commits: ctx.commits.length,
         files: ctx.touches.length,

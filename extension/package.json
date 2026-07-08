@@ -2,7 +2,7 @@
   "name": "standup",
   "displayName": "Standup",
   "description": "Local-first daily stand-up generator. Watches your git, IDE activity & GitHub, drafts your stand-up with a local LLM, posts to Discord/Slack.",
-  "version": "0.0.4",
+  "version": "0.0.7",
   "publisher": "standup-dev",
   "license": "MIT",
   "engines": {
@@ -28,10 +28,6 @@
       {
         "command": "standup.setReminderTime",
         "title": "Standup: Set Reminder Time"
-      },
-      {
-        "command": "standup.resetStyle",
-        "title": "Standup: Reset Draft Style to Default"
       },
       {
         "command": "standup.connectGitHub",
@@ -87,7 +83,7 @@
             "5-7 points with the key specifics (files, endpoints, issue numbers)",
             "5-8 thorough points enumerating files, assets, fields and URLs — a full work log"
           ],
-          "default": "standard",
+          "default": "concise",
           "description": "How detailed the generated stand-up should be. Also switchable from the stand-up panel."
         },
         "standup.webhook.type": {

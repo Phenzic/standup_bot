@@ -1,33 +1,22 @@
 import * as vscode from "vscode";
 
-// The default draft "style profile". This is the example the local model
-// imitates — plain prose, grouped by theme, conversational, no commit prefixes.
-// Users can replace it from the panel to match their own voice.
-export const DEFAULT_STYLE = `Hey team, here's what I worked on today:
+export type DetailLevel = "concise" | "standard" | "elaborate";
 
-Reworked the authentication flow — added a password reset endpoint and fixed a bug where expired refresh tokens were still being accepted. Both paths are now covered by tests.
-
-Cleaned up the tasks API: added due-date filtering to the list endpoint, paginated the results, and made missing task ids return a proper 404. Closed the related issue as part of this.
-
-Refactored the shared date-formatting logic into a single utility so the API and workers stop duplicating it.
-
-Next: review and merge the open PRs, then run the full test suite.
-
-No blockers.`;
-
-// Small typed wrapper over globalState for the things that don't belong in
-// user-editable settings (multi-line style text, first-run flag, reminder log).
+// Small typed wrapper over globalState (first-run flag, reminder log).
+// The stand-up format itself is fixed — see the base template in summarize.ts.
 export class State {
   constructor(private ctx: vscode.ExtensionContext) {}
 
-  getStyle(): string {
-    return this.ctx.globalState.get<string>("style", DEFAULT_STYLE);
+  hasDetail(): boolean {
+    return this.ctx.globalState.get<DetailLevel>("detail") !== undefined;
   }
-  setStyle(s: string): Thenable<void> {
-    return this.ctx.globalState.update("style", s.trim() || DEFAULT_STYLE);
+
+  getDetail(): DetailLevel {
+    return this.ctx.globalState.get<DetailLevel>("detail", "concise");
   }
-  resetStyle(): Thenable<void> {
-    return this.ctx.globalState.update("style", undefined);
+
+  setDetail(d: DetailLevel): Thenable<void> {
+    return this.ctx.globalState.update("detail", d);
   }
 
   isSetupDone(): boolean {

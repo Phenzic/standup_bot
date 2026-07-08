@@ -51,14 +51,28 @@ export async function gatherContext(store: Store): Promise<StandupContext> {
   return { since, until, commits, touches, github, cursorPrompts };
 }
 
-// Render the gathered context as a compact text block for the model / debug view.
+// Render the gathered context as a text block for the model / debug view.
+// The detail level scales the INPUT, not just the instructions: elaborate gets
+// per-commit file lists and bodies (so it can name pages and what changed in
+// each), concise gets subjects only. A model can't enumerate what it isn't given.
 export function contextToText(ctx: StandupContext): string {
+  const detail = cfg().detail;
+  const perCommitFiles = detail === "elaborate" ? 15 : detail === "standard" ? 6 : 0;
+  const bodyChars = detail === "elaborate" ? 400 : detail === "standard" ? 200 : 0;
+  const touchCap = detail === "elaborate" ? 25 : detail === "standard" ? 12 : 5;
   const lines: string[] = [];
 
   if (ctx.commits.length) {
     lines.push("## Git commits");
     for (const cm of ctx.commits) {
-      lines.push(`- [${cm.repo}] ${cm.subject}${cm.body ? ` — ${cm.body.replace(/\s+/g, " ").slice(0, 200)}` : ""}`);
+      const body =
+        bodyChars && cm.body ? ` — ${cm.body.replace(/\s+/g, " ").slice(0, bodyChars)}` : "";
+      lines.push(`- [${cm.repo}] ${cm.subject}${body}`);
+      if (perCommitFiles && cm.files.length) {
+        const shown = cm.files.slice(0, perCommitFiles);
+        const more = cm.files.length - shown.length;
+        lines.push(`  files: ${shown.join(", ")}${more > 0 ? ` (+${more} more)` : ""}`);
+      }
     }
     lines.push("");
   }
@@ -82,7 +96,7 @@ export function contextToText(ctx: StandupContext): string {
 
   if (ctx.touches.length) {
     lines.push("## Files worked on (not necessarily committed)");
-    for (const t of ctx.touches.slice(0, 25)) {
+    for (const t of ctx.touches.slice(0, touchCap)) {
       lines.push(`- [${t.project}] ${t.file} (${t.lang}, ${t.saves} saves)`);
     }
     lines.push("");

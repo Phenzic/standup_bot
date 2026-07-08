@@ -18,6 +18,27 @@ export function buildReferences(ctx: StandupContext): string {
   return lines.join("\n");
 }
 
+// Deterministic formatting the model half-obeys when asked: any top-level
+// bullet ending in an inline run of 3+ file paths ("...: a.md, b.md, c.md")
+// is rewritten with the paths as indented sub-bullets, one per line.
+export function enforceSublists(md: string): string {
+  const PATHISH = /[\w@][\w.\/-]*\.\w{1,6}/;
+  return md
+    .split("\n")
+    .map((line) => {
+      const m = line.match(/^- (.+?):\s*(.+?)\.?\s*$/);
+      if (!m) {
+        return line;
+      }
+      const parts = m[2].split(/,\s*(?:and\s+)?/).map((p) => p.trim()).filter(Boolean);
+      if (parts.length < 3 || !parts.every((p) => PATHISH.test(p) && !p.includes(" "))) {
+        return line;
+      }
+      return [`- ${m[1]}:`, ...parts.map((p) => `  - ${p}`)].join("\n");
+    })
+    .join("\n");
+}
+
 // Convert a markdown stand-up into readable plain text: unwrap links to
 // "text (url)", drop bold markers and heading hashes, normalize bullets.
 export function toPlainText(md: string): string {

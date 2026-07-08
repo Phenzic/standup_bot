@@ -41,13 +41,16 @@ Then press **F5** in VS Code (or Cursor) to launch the Extension Development Hos
 | `standup.reminder.enabled` | `true` | Daily local-time nudge to send your stand-up |
 | `standup.reminder.time` | `16:00` | Reminder time (24h `HH:MM`, local). Set on first run. |
 
-## Draft style
+## Output format
 
-The draft is shaped by a **style example** — an example stand-up the local model
-imitates for voice and structure. It ships with a sensible prose default (no
-`feat()`/`fix()` prefixes, grouped by theme). Edit it in the **"✎ Customize draft
-style"** section of the panel, Save, then Regenerate. Reset any time with
-**"Standup: Reset Draft Style to Default"**.
+The stand-up format is **fixed and opinionated** (like an editor's base prompt):
+a friendly opener, then **Done / Next / Blockers** with one accomplishment per
+bullet. When a point covers 3+ files, they're listed as an indented sub-bullet
+list under the point — enforced deterministically in code, not left to the model.
+The **Detail** dropdown in the panel (or `standup.detail`) controls granularity:
+`concise` (3-4 points) / `standard` (5-7) / `elaborate` (6-9, every changed file
+named). If the model under-splits, a single automatic repair pass rewrites it to
+meet the minimum — real work is split, never padded.
 
 The panel shows the draft in **Markdown** and **Plain text** tabs; each is
 independently editable and copyable. GitHub issues/PRs are appended as a
